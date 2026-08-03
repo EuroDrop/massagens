@@ -1,6 +1,16 @@
 (() => {
   'use strict';
 
+  (function() {
+  const VALID_KEY = "1234"; // mesma chave do login
+
+  const key = localStorage.getItem("authKey");
+
+  if (key !== VALID_KEY) {
+    window.location.href = "login.html";
+  }
+})();
+
   const STORAGE_KEY = 'massageCreditsApp_v1';
   const MAX_HISTORY = 1000;
   const DEFAULT_PIN = '1234';
