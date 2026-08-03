@@ -1,0 +1,10 @@
+{
+  "rules": {
+    "apps": {
+      "massageCredits": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    }
+  }
+}
