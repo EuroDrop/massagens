@@ -1,4 +1,8 @@
 const CACHE_NAME = 'massage-credits-v1.0.0';
+self.addEventListener("install", () => {
+  // não cacheia nada se não houver chave
+  self.skipWaiting();
+});
 const APP_SHELL = [
   './',
   './index.html',
