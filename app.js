@@ -311,20 +311,24 @@ import { getDatabase, onValue, ref, set } from 'https://www.gstatic.com/firebase
 
 async function checkFirebasePing() {
   try {
-    // pequeno ping ao RTDB (super leve)
-    const pingRef = ref(database, 'ping');
+    const pingRef = ref(database, FIREBASE_STATE_PATH + '/__ping');
     await set(pingRef, Date.now());
     return true;
-  } catch {
+  } catch (err) {
+    console.error("Ping falhou:", err);
     return false;
   }
 }
 
+await signInAnonymously(auth);
+database = getDatabase(firebaseApp);
+
 setInterval(async () => {
-  const pingOk = await checkFirebasePing();
-  firebaseConnected = pingOk;
+  const ok = await checkFirebasePing();
+  firebaseConnected = ok;
   updateConnectionStatus();
 }, 8000);
+
 
       onValue(
         sharedStateRef,
