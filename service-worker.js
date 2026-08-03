@@ -1,11 +1,11 @@
-const CACHE_NAME = 'massage-credits-v2.0.0';
+const CACHE_NAME = 'massage-credits-v3.0.0';
 
 const APP_SHELL = [
   './',
   './index.html',
   './login.html',
-  './style.css',
-  './app.js',
+  './style.css?v=3.0.0',
+  './app.js?v=3.0.0',
   './manifest.json',
   './icons/icon-192.png',
   './icons/icon-512.png',
@@ -37,33 +37,35 @@ self.addEventListener('fetch', (event) => {
 
   const requestUrl = new URL(event.request.url);
 
-  // Firebase and other external resources remain under normal browser control.
+  // O Firebase e restantes recursos externos não devem passar pela cache da PWA.
   if (requestUrl.origin !== self.location.origin) return;
 
-  event.respondWith(
-    fetch(event.request)
-      .then((response) => {
-        if (response && response.status === 200) {
-          const copy = response.clone();
-          caches.open(CACHE_NAME)
-            .then((cache) => cache.put(event.request, copy))
-            .catch(() => {});
-        }
-        return response;
-      })
-      .catch(async () => {
-        const cached = await caches.match(event.request);
-        if (cached) return cached;
+  event.respondWith((async () => {
+    try {
+      // Força uma consulta efetiva ao servidor quando existe ligação, evitando
+      // que o browser devolva silenciosamente uma versão antiga de app.js.
+      const freshRequest = new Request(event.request, { cache: 'no-store' });
+      const response = await fetch(freshRequest);
 
-        if (event.request.mode === 'navigate') {
-          const fallback = await caches.match('./index.html');
-          if (fallback) return fallback;
-        }
+      if (response && response.ok) {
+        const cache = await caches.open(CACHE_NAME);
+        await cache.put(event.request, response.clone());
+      }
 
-        return new Response('', {
-          status: 503,
-          statusText: 'Offline'
-        });
-      })
-  );
+      return response;
+    } catch (error) {
+      const cached = await caches.match(event.request, { ignoreSearch: true });
+      if (cached) return cached;
+
+      if (event.request.mode === 'navigate') {
+        const fallback = await caches.match('./index.html', { ignoreSearch: true });
+        if (fallback) return fallback;
+      }
+
+      return new Response('', {
+        status: 503,
+        statusText: 'Offline'
+      });
+    }
+  })());
 });

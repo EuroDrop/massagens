@@ -5,16 +5,6 @@ import { getDatabase, onValue, ref, set } from 'https://www.gstatic.com/firebase
 (() => {
   'use strict';
 
-  (function() {
-  const VALID_KEY = "1234"; // mesma chave do login
-
-  const key = localStorage.getItem("authKey");
-
-  if (key !== VALID_KEY) {
-    window.location.href = "login.html";
-  }
-})();
-
   const STORAGE_KEY = 'massageCreditsApp_v1';
   const PENDING_SYNC_KEY = 'massageCreditsPendingSync_v1';
   const DEVICE_ID_KEY = 'massageCreditsDeviceId_v1';
@@ -54,19 +44,9 @@ import { getDatabase, onValue, ref, set } from 'https://www.gstatic.com/firebase
   let applyingRemoteState = false;
   let cloudSaveChain = Promise.resolve();
   let firebaseInitialised = false;
+  let lastQueuedUpdatedAt = null;
 
-async function checkFirebasePing() {
-  try {
-    const pingRef = ref(database, FIREBASE_STATE_PATH + '/__ping');
-    await set(pingRef, Date.now());
-    return true;
-  } catch (err) {
-    console.error("Ping falhou:", err);
-    return false;
-  }
-}
-  
-const DEVICE_ID = (() => {
+  const DEVICE_ID = (() => {
     const existing = localStorage.getItem(DEVICE_ID_KEY);
     if (existing) return existing;
     const generated = window.crypto?.randomUUID
@@ -194,8 +174,7 @@ const DEVICE_ID = (() => {
     if (!saved || typeof saved !== 'object') return base;
 
     const merged = {
-      ...base,
-      ...saved,
+      version: 1,
       credits: Number.isFinite(Number(saved.credits)) ? Math.max(0, Math.floor(Number(saved.credits))) : base.credits,
       minutePrice: Number.isFinite(Number(saved.minutePrice)) ? Math.max(1, Math.floor(Number(saved.minutePrice))) : base.minutePrice,
       adminPin: /^\d{4,8}$/.test(String(saved.adminPin || '')) ? String(saved.adminPin) : DEFAULT_PIN,
@@ -211,7 +190,9 @@ const DEVICE_ID = (() => {
         }
       },
       activeSession: saved.activeSession && typeof saved.activeSession === 'object' ? saved.activeSession : null,
-      lastSessionSummary: saved.lastSessionSummary && typeof saved.lastSessionSummary === 'object' ? saved.lastSessionSummary : null
+      lastSessionSummary: saved.lastSessionSummary && typeof saved.lastSessionSummary === 'object' ? saved.lastSessionSummary : null,
+      createdAt: saved.createdAt || base.createdAt,
+      updatedAt: saved.updatedAt || base.updatedAt
     };
 
     merged.shopCoupons = merged.shopCoupons.map((coupon) => ({
@@ -264,18 +245,35 @@ const DEVICE_ID = (() => {
   }
 
   function queueCloudSave() {
-    if (!cloudReady || !sharedStateRef || applyingRemoteState) return;
+    if (!cloudReady || !sharedStateRef || applyingRemoteState || !firebaseConnected) return;
 
     const payload = JSON.parse(JSON.stringify(state));
+    const payloadUpdatedAt = String(payload.updatedAt || '');
+
+    // Evita colocar a mesma versão várias vezes na fila quando o listener recebe
+    // eventos intermédios enquanto já existe uma gravação em curso.
+    if (payloadUpdatedAt && payloadUpdatedAt === lastQueuedUpdatedAt) return;
+    lastQueuedUpdatedAt = payloadUpdatedAt;
+
     cloudSaveChain = cloudSaveChain
       .then(() => set(sharedStateRef, payload))
       .then(() => {
-        localStorage.removeItem(PENDING_SYNC_KEY);
+        // Só considera tudo sincronizado se o estado local não tiver sido
+        // alterado novamente durante esta gravação.
+        if (String(state.updatedAt || '') === payloadUpdatedAt) {
+          localStorage.removeItem(PENDING_SYNC_KEY);
+        } else {
+          localStorage.setItem(PENDING_SYNC_KEY, '1');
+          queueCloudSave();
+        }
       })
       .catch((error) => {
         console.error('Não foi possível sincronizar com o Firebase:', error);
         localStorage.setItem(PENDING_SYNC_KEY, '1');
         showToast('Alteração guardada localmente. A sincronização será repetida quando houver ligação.');
+      })
+      .finally(() => {
+        if (lastQueuedUpdatedAt === payloadUpdatedAt) lastQueuedUpdatedAt = null;
       });
   }
 
@@ -292,12 +290,19 @@ const DEVICE_ID = (() => {
   }
 
   function applyRemoteState(remoteState) {
+    const containsLegacyPing = Object.prototype.hasOwnProperty.call(remoteState || {}, '__ping');
+
     applyingRemoteState = true;
     state = normaliseState(remoteState);
     saveLocalState();
     applyingRemoteState = false;
     recoverSession();
     renderAll();
+
+    if (containsLegacyPing) {
+      localStorage.setItem(PENDING_SYNC_KEY, '1');
+      queueCloudSave();
+    }
   }
 
   async function initialiseFirebaseSync() {
@@ -307,29 +312,24 @@ const DEVICE_ID = (() => {
     try {
       const firebaseApp = initializeApp(firebaseConfig);
       const auth = getAuth(firebaseApp);
-await signInAnonymously(auth);
+      const credential = await signInAnonymously(auth);
 
-database = getDatabase(firebaseApp);
-sharedStateRef = ref(database, FIREBASE_STATE_PATH);
+      database = getDatabase(firebaseApp);
+      sharedStateRef = ref(database, FIREBASE_STATE_PATH);
 
-// Listener oficial do Firebase
-onValue(ref(database, '.info/connected'), (snapshot) => {
-  firebaseConnected = snapshot.val() === true;
-  updateConnectionStatus();
-  if (firebaseConnected && localStorage.getItem(PENDING_SYNC_KEY) === '1') {
-    queueCloudSave();
-  }
-});
+      console.info('[Firebase] Autenticação concluída', {
+        uid: credential.user.uid,
+        path: FIREBASE_STATE_PATH
+      });
 
-// Ping adicional para iPhone
-setInterval(async () => {
-  if (!database) return;
-  const ok = await checkFirebasePing();
-  firebaseConnected = ok;
-  updateConnectionStatus();
-}, 8000);
+      onValue(ref(database, '.info/connected'), (snapshot) => {
+        firebaseConnected = snapshot.val() === true;
+        updateConnectionStatus();
 
-
+        if (firebaseConnected && localStorage.getItem(PENDING_SYNC_KEY) === '1') {
+          queueCloudSave();
+        }
+      });
 
       onValue(
         sharedStateRef,
@@ -343,14 +343,24 @@ setInterval(async () => {
             return;
           }
 
-          if (!cloudReady && hasPendingLocalChanges) {
-            cloudReady = true;
+          const remoteState = snapshot.val();
+          const localUpdatedAt = Date.parse(state.updatedAt || '') || 0;
+          const remoteUpdatedAt = Date.parse(remoteState?.updatedAt || '') || 0;
+
+          cloudReady = true;
+
+          // Esta comparação é aplicada a TODOS os eventos recebidos, e não
+          // apenas à primeira leitura. Assim, uma resposta antiga do Firebase
+          // não apaga uma alteração local mais recente ainda em fila.
+          if (hasPendingLocalChanges && localUpdatedAt > remoteUpdatedAt) {
             queueCloudSave();
             return;
           }
 
-          cloudReady = true;
-          const remoteState = snapshot.val();
+          if (hasPendingLocalChanges && remoteUpdatedAt >= localUpdatedAt) {
+            localStorage.removeItem(PENDING_SYNC_KEY);
+          }
+
           if (JSON.stringify(remoteState) !== JSON.stringify(state)) {
             applyRemoteState(remoteState);
           }
@@ -1341,11 +1351,14 @@ setInterval(async () => {
   }
 
   function registerServiceWorker() {
-    if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-      navigator.serviceWorker.register('./service-worker.js').catch((error) => {
+    if (!('serviceWorker' in navigator) || !location.protocol.startsWith('http')) return;
+
+    navigator.serviceWorker
+      .register('./service-worker.js', { updateViaCache: 'none' })
+      .then((registration) => registration.update())
+      .catch((error) => {
         console.warn('Service worker não registado:', error);
       });
-    }
   }
 
   function cacheElements() {
@@ -1517,12 +1530,33 @@ setInterval(async () => {
       if (document.visibilityState === 'visible') {
         syncSessionTime();
         renderAll();
-      } else {
-        saveState();
+        return;
+      }
+
+      const session = state.activeSession;
+      const ownedByThisDevice = session?.active &&
+        (!session.ownerDeviceId || session.ownerDeviceId === DEVICE_ID);
+
+      if (ownedByThisDevice) {
+        syncSessionTime();
+        saveLocalState();
+        localStorage.setItem(PENDING_SYNC_KEY, '1');
+        queueCloudSave();
       }
     });
 
-    window.addEventListener('beforeunload', saveState);
+    window.addEventListener('beforeunload', () => {
+      const session = state.activeSession;
+      const ownedByThisDevice = session?.active &&
+        (!session.ownerDeviceId || session.ownerDeviceId === DEVICE_ID);
+
+      if (ownedByThisDevice) {
+        syncSessionTime();
+        localStorage.setItem(PENDING_SYNC_KEY, '1');
+      }
+
+      saveLocalState();
+    });
   }
 
   function recoverSession() {
@@ -1542,7 +1576,7 @@ setInterval(async () => {
   function init() {
     cacheElements();
     state = loadState();
-    saveState({ syncCloud: false });
+    saveLocalState();
     bindEvents();
     recoverSession();
     renderAll();
