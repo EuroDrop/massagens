@@ -55,7 +55,18 @@ import { getDatabase, onValue, ref, set } from 'https://www.gstatic.com/firebase
   let cloudSaveChain = Promise.resolve();
   let firebaseInitialised = false;
 
-  const DEVICE_ID = (() => {
+async function checkFirebasePing() {
+  try {
+    const pingRef = ref(database, FIREBASE_STATE_PATH + '/__ping');
+    await set(pingRef, Date.now());
+    return true;
+  } catch (err) {
+    console.error("Ping falhou:", err);
+    return false;
+  }
+}
+  
+const DEVICE_ID = (() => {
     const existing = localStorage.getItem(DEVICE_ID_KEY);
     if (existing) return existing;
     const generated = window.crypto?.randomUUID
@@ -296,38 +307,28 @@ import { getDatabase, onValue, ref, set } from 'https://www.gstatic.com/firebase
     try {
       const firebaseApp = initializeApp(firebaseConfig);
       const auth = getAuth(firebaseApp);
-      await signInAnonymously(auth);
-
-      database = getDatabase(firebaseApp);
-      sharedStateRef = ref(database, FIREBASE_STATE_PATH);
-
-      onValue(ref(database, '.info/connected'), (snapshot) => {
-        firebaseConnected = snapshot.val() === true;
-        updateConnectionStatus();
-        if (firebaseConnected && localStorage.getItem(PENDING_SYNC_KEY) === '1') {
-          queueCloudSave();
-        }
-      });
-
-async function checkFirebasePing() {
-  try {
-    const pingRef = ref(database, FIREBASE_STATE_PATH + '/__ping');
-    await set(pingRef, Date.now());
-    return true;
-  } catch (err) {
-    console.error("Ping falhou:", err);
-    return false;
-  }
-}
-
 await signInAnonymously(auth);
-database = getDatabase(firebaseApp);
 
+database = getDatabase(firebaseApp);
+sharedStateRef = ref(database, FIREBASE_STATE_PATH);
+
+// Listener oficial do Firebase
+onValue(ref(database, '.info/connected'), (snapshot) => {
+  firebaseConnected = snapshot.val() === true;
+  updateConnectionStatus();
+  if (firebaseConnected && localStorage.getItem(PENDING_SYNC_KEY) === '1') {
+    queueCloudSave();
+  }
+});
+
+// Ping adicional para iPhone
 setInterval(async () => {
+  if (!database) return;
   const ok = await checkFirebasePing();
   firebaseConnected = ok;
   updateConnectionStatus();
 }, 8000);
+
 
 
       onValue(
