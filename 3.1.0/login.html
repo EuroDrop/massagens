@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Acesso Restrito</title>
+  <style>
+    body { font-family: Arial, sans-serif; background:#111; color:#fff; display:flex; justify-content:center; align-items:center; min-height:100vh; margin:0; }
+    .box { width:min(100% - 32px, 340px); background:#222; padding:30px; border-radius:10px; box-sizing:border-box; }
+    input { width:100%; padding:10px; margin-top:10px; box-sizing:border-box; }
+    button { margin-top:10px; padding:10px; width:100%; }
+    #msg { min-height:1.2em; color:#ff9b9b; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h2>Autenticação</h2>
+    <input id="key" type="password" placeholder="Insere a chave" autocomplete="current-password">
+    <button id="loginButton" type="button">Entrar</button>
+    <p id="msg"></p>
+  </div>
+  <script>
+    const VALID_KEY = 'const';
+    function login() {
+      const k = document.getElementById('key').value;
+      if (k === VALID_KEY) {
+        localStorage.setItem('authKey', k);
+        window.location.href = 'index.html';
+      } else {
+        document.getElementById('msg').innerText = 'Chave inválida.';
+      }
+    }
+    document.getElementById('loginButton').addEventListener('click', login);
+    document.getElementById('key').addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') login();
+    });
+  </script>
+</body>
+</html>
