@@ -13,15 +13,15 @@ import { getDatabase, onValue, ref, set } from 'https://www.gstatic.com/firebase
   const MAX_HISTORY = 1000;
   const DEFAULT_PIN = '1234';
 
-  const firebaseConfig = {
-    apiKey: 'AIzaSyBTGZU1zoxw3Utacst8gU3ZIiY9uJ-rnuA',
-    authDomain: 'massagens-9a56f.firebaseapp.com',
-    databaseURL: 'https://massagens-9a56f-default-rtdb.europe-west1.firebasedatabase.app',
-    projectId: 'massagens-9a56f',
-    storageBucket: 'massagens-9a56f.firebasestorage.app',
-    messagingSenderId: '1030709925203',
-    appId: '1:1030709925203:web:d9c2ed526614a392cc7da6'
-  };
+const firebaseConfig = {
+  apiKey: "AIzaSyAc2NQ354sRFt5RSYHfTKok7IMg5y5tvKc",
+  authDomain: "massage-credits.firebaseapp.com",
+  databaseURL: "https://massage-credits-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "massage-credits",
+  storageBucket: "massage-credits.firebasestorage.app",
+  messagingSenderId: "667486056032",
+  appId: "1:667486056032:web:7cc017f2f5433272e91d05"
+};
 
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
