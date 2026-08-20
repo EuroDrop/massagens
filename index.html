@@ -1,0 +1,445 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<script>
+  const VALID_KEY = "1234";
+  if (localStorage.getItem("authKey") !== VALID_KEY) {
+    window.location.href = "login.html";
+  }
+</script>
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b1118">
+  <meta name="color-scheme" content="dark">
+  <meta name="description" content="Aplicação privada para gerir créditos, cupões e sessões de massagem.">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Massagens">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' https://www.gstatic.com https://apis.google.com; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://*.firebasedatabase.app wss://*.firebasedatabase.app; frame-src 'self' https://massage-credits.firebaseapp.com; manifest-src 'self'; worker-src 'self';">
+  <title>Massagens</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon.png" type="image/png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="style.css?v=3.3.0">
+</head>
+<body>
+  <div class="ambient ambient-one" aria-hidden="true"></div>
+  <div class="ambient ambient-two" aria-hidden="true"></div>
+
+  <div class="app-shell">
+    <header class="topbar">
+      <button class="brand-button" type="button" data-nav="home" aria-label="Ir para o início">
+        <img src="icon.png" alt="" width="42" height="42">
+        <span>
+          <strong>Massagens</strong>
+        </span>
+      </button>
+      <div class="topbar-actions">
+        <span class="status-dot" id="connectionStatus" title="Estado da ligação" aria-label="Estado da ligação"></span>
+        <button class="icon-button hidden" id="installButton" type="button" aria-label="Instalar aplicação" title="Instalar aplicação">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11m0 0 4-4m-4 4-4-4M5 15v4h14v-4"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <main class="content" id="mainContent">
+      <section class="view active" id="view-home" data-view="home" aria-labelledby="homeTitle">
+        <div class="hero-card">
+          <div class="hero-topline">
+            <span class="eyebrow">Saldo disponível</span>
+            <span class="level-badge" id="levelBadge">Bronze</span>
+          </div>
+          <div class="balance-row">
+            <div class="balance-main">
+              <span class="balance-number" id="balanceValue">0</span>
+              <span class="balance-unit">créditos</span>
+            </div>
+            <div class="balance-ring" id="balanceRing" aria-hidden="true">
+              <span id="availableMinutesRing">0m</span>
+            </div>
+          </div>
+          <p class="hero-caption" id="levelCaption">Um espaço privado para cuidar do teu tempo.</p>
+        </div>
+
+        <section class="today-card" aria-labelledby="homeTitle">
+          <div class="section-heading compact">
+            <div>
+              <span class="eyebrow">Esta semana</span>
+              <h1 id="homeTitle">Cupão da semana</h1>
+            </div>
+            <span class="date-chip" id="todayDate"></span>
+          </div>
+          <p class="today-message" id="todayMessage">Uma sugestão especial para aproveitar esta semana.</p>
+          <div class="today-grid">
+            <div>
+              <span>Cupão selecionado</span>
+              <strong id="recommendedCoupon">A calcular…</strong>
+            </div>
+            <div>
+              <span>Última massagem</span>
+              <strong id="lastMassage">Sem registo</strong>
+            </div>
+          </div>
+          <button class="primary-button full" type="button" data-nav="minute">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7v5l3 2M12 3a9 9 0 1 0 9 9 9 9 0 0 0-9-9Z"/></svg>
+            Iniciar massagem ao minuto
+          </button>
+        </section>
+
+        <div class="metric-grid">
+          <article class="metric-card">
+            <span class="metric-icon">◷</span>
+            <span>Minutos disponíveis</span>
+            <strong id="minutesAvailable">0</strong>
+          </article>
+          <article class="metric-card">
+            <span class="metric-icon">◇</span>
+            <span>Cupões ativos</span>
+            <strong id="activeCouponsCount">0</strong>
+          </article>
+          <article class="metric-card">
+            <span class="metric-icon">↗</span>
+            <span>Minutos acumulados</span>
+            <strong id="totalMinutesUsed">0</strong>
+          </article>
+        </div>
+
+        <section class="panel-card">
+          <div class="section-heading">
+            <div>
+              <span class="eyebrow">Acesso rápido</span>
+              <h2>Escolhe o próximo passo</h2>
+            </div>
+          </div>
+          <div class="quick-grid">
+            <button class="quick-button" type="button" data-nav="coupons">
+              <span class="quick-icon">⌁</span>
+              <strong>Loja de Cupões</strong>
+              <small>Trocar créditos</small>
+            </button>
+            <button class="quick-button" type="button" data-nav="history">
+              <span class="quick-icon">≡</span>
+              <strong>Histórico</strong>
+              <small>Ver movimentos</small>
+            </button>
+          </div>
+        </section>
+
+        <section class="panel-card">
+          <div class="section-heading">
+            <div>
+              <span class="eyebrow">Última atividade</span>
+              <h2>Movimentos recentes</h2>
+            </div>
+            <button class="text-button" type="button" data-nav="history">Ver tudo</button>
+          </div>
+          <div class="activity-list" id="recentActivity"></div>
+        </section>
+      </section>
+
+      <section class="view" id="view-coupons" data-view="coupons" aria-labelledby="couponsTitle">
+        <div class="page-heading">
+          <span class="eyebrow">Créditos por experiências</span>
+          <h1 id="couponsTitle">Loja de Cupões</h1>
+          <p>Escolhe uma experiência e guarda-a para o momento certo.</p>
+        </div>
+
+        <div class="segmented-control" role="tablist" aria-label="Secções de cupões">
+          <button class="active" type="button" role="tab" data-coupon-tab="store">Loja</button>
+          <button type="button" role="tab" data-coupon-tab="mine">Os meus cupões <span id="couponTabCount">0</span></button>
+        </div>
+
+        <div id="couponStorePanel" class="coupon-panel active">
+          <div class="coupon-grid" id="couponStore"></div>
+        </div>
+        <div id="myCouponsPanel" class="coupon-panel">
+          <div class="coupon-grid" id="myCoupons"></div>
+        </div>
+      </section>
+
+      <section class="view" id="view-minute" data-view="minute" aria-labelledby="minuteTitle">
+        <div class="page-heading centered">
+          <span class="eyebrow">Sessão flexível</span>
+          <h1 id="minuteTitle">Massagem ao Minuto</h1>
+          <p>Controla o tempo, pausa quando precisares e termina com um resumo claro.</p>
+        </div>
+
+        <article class="timer-card" id="timerCard">
+          <div class="timer-status-row">
+            <span class="timer-status" id="timerStatus">Pronto</span>
+            <span class="price-pill"><strong id="minutePriceDisplay">1</strong> crédito/min</span>
+          </div>
+          <div class="timer-display" id="timerDisplay" aria-live="polite">00:00</div>
+          <div class="timer-progress"><span id="timerProgress"></span></div>
+          <div class="timer-details">
+            <div><span>Créditos usados</span><strong id="sessionCredits">0</strong></div>
+            <div><span>Saldo restante</span><strong id="sessionBalance">0</strong></div>
+          </div>
+
+          <button class="primary-button full large" id="startSessionButton" type="button">Iniciar massagem ao minuto</button>
+          <div class="timer-controls hidden" id="timerControls">
+            <button class="secondary-button" id="pauseSessionButton" type="button">Pausar</button>
+            <button class="danger-button" id="endSessionButton" type="button">Terminar</button>
+          </div>
+        </article>
+
+        <section class="info-card">
+          <span class="info-icon">i</span>
+          <div>
+            <strong>Como funciona</strong>
+            <p>É cobrado o preço definido por cada minuto iniciado. A sessão termina automaticamente quando já não existir saldo para iniciar o minuto seguinte.</p>
+          </div>
+        </section>
+
+        <section class="panel-card hidden" id="lastSessionCard">
+          <div class="section-heading">
+            <div>
+              <span class="eyebrow">Último resumo</span>
+              <h2>Sessão concluída</h2>
+            </div>
+          </div>
+          <div class="summary-grid">
+            <div><span>Tempo total</span><strong id="summaryTime">—</strong></div>
+            <div><span>Créditos</span><strong id="summaryCredits">—</strong></div>
+            <div><span>Saldo</span><strong id="summaryBalance">—</strong></div>
+          </div>
+        </section>
+      </section>
+
+      <section class="view" id="view-history" data-view="history" aria-labelledby="historyTitle">
+        <div class="page-heading">
+          <span class="eyebrow">Registo</span>
+          <h1 id="historyTitle">Histórico</h1>
+        </div>
+        <div class="history-summary" id="historySummary"></div>
+        <div class="filter-row" id="historyFilters">
+          <button class="filter-chip active" type="button" data-history-filter="all">Tudo</button>
+          <button class="filter-chip" type="button" data-history-filter="credits">Créditos</button>
+          <button class="filter-chip" type="button" data-history-filter="coupons">Cupões</button>
+          <button class="filter-chip" type="button" data-history-filter="massage">Massagens</button>
+        </div>
+        <div class="activity-list history-list" id="historyList"></div>
+      </section>
+
+      <section class="view" id="view-admin" data-view="admin" aria-labelledby="adminTitle">
+        <div class="page-heading admin-heading">
+          <div>
+            <span class="eyebrow">Acesso protegido</span>
+            <h1 id="adminTitle">Painel Admin</h1>
+            <p>Gestão sincronizada de créditos, cupões, regras e estatísticas.</p>
+          </div>
+          <button class="secondary-button small" id="lockAdminButton" type="button">Bloquear</button>
+        </div>
+
+        <div class="admin-summary-grid" id="adminSummary"></div>
+
+        <section class="admin-card">
+          <div class="section-heading">
+            <div><span class="eyebrow">Saldo</span><h2>Gerir créditos</h2></div>
+          </div>
+          <form class="stack-form" id="creditsForm">
+            <div class="field-row">
+              <label>Operação
+                <select id="creditOperation">
+                  <option value="add">Adicionar</option>
+                  <option value="remove">Remover</option>
+                </select>
+              </label>
+              <label>Quantidade
+                <input id="creditAmount" type="number" min="1" step="1" inputmode="numeric" placeholder="20" required>
+              </label>
+            </div>
+            <label>Razão ou descrição
+              <input id="creditReason" type="text" maxlength="80" placeholder="Ex.: Bónus especial" required>
+            </label>
+            <button class="primary-button" type="submit">Aplicar movimento</button>
+          </form>
+          <div class="inline-actions">
+            <button class="secondary-button" id="resetBalanceButton" type="button">Repor saldo</button>
+          </div>
+        </section>
+
+        <section class="admin-card">
+          <div class="section-heading">
+            <div><span class="eyebrow">Tarifário</span><h2>Preço por minuto</h2></div>
+          </div>
+          <form class="inline-form" id="minutePriceForm">
+            <label>Créditos por minuto
+              <input id="minutePriceInput" type="number" min="1" max="100" step="1" inputmode="numeric" required>
+            </label>
+            <button class="primary-button" type="submit">Guardar</button>
+          </form>
+        </section>
+
+        <section class="admin-card">
+          <div class="section-heading">
+            <div><span class="eyebrow">Catálogo</span><h2>Gerir cupões</h2></div>
+            <button class="primary-button small" id="addCouponButton" type="button">Novo cupão</button>
+          </div>
+          <div class="admin-coupon-list" id="adminCouponList"></div>
+        </section>
+
+        <section class="admin-card">
+          <div class="section-heading">
+            <div><span class="eyebrow">Nível especial</span><h2>VIP Pai</h2></div>
+          </div>
+          <div class="toggle-row">
+            <div>
+              <strong>Desbloqueio manual</strong>
+              <p>O nível também é desbloqueado automaticamente com 15 utilizações ou 180 minutos acumulados.</p>
+            </div>
+            <label class="switch">
+              <input id="vipToggle" type="checkbox">
+              <span></span>
+            </label>
+          </div>
+        </section>
+
+        <section class="admin-card">
+          <div class="section-heading">
+            <div><span class="eyebrow">Segurança local</span><h2>Alterar PIN</h2></div>
+          </div>
+          <form class="stack-form" id="pinForm">
+            <div class="field-row">
+              <label>PIN atual
+                <input id="currentPin" type="password" inputmode="numeric" minlength="4" maxlength="8" required>
+              </label>
+              <label>Novo PIN
+                <input id="newPin" type="password" inputmode="numeric" pattern="[0-9]{4,8}" minlength="4" maxlength="8" required>
+              </label>
+            </div>
+            <label>Confirmar novo PIN
+              <input id="confirmPin" type="password" inputmode="numeric" pattern="[0-9]{4,8}" minlength="4" maxlength="8" required>
+            </label>
+            <button class="primary-button" type="submit">Alterar PIN</button>
+          </form>
+        </section>
+
+        <section class="admin-card danger-zone">
+          <div class="section-heading">
+            <div><span class="eyebrow">Manutenção</span><h2>Dados sincronizados</h2></div>
+          </div>
+          <p>Estas ações afetam os dados sincronizados em todos os dispositivos.</p>
+          <div class="inline-actions">
+            <button class="danger-button" id="clearHistoryButton" type="button">Limpar histórico</button>
+            <button class="secondary-button" id="clearLocalCacheButton" type="button">Limpar cache local</button>
+          </div>
+          <p class="admin-note">A limpeza de cache remove apenas dados locais deste dispositivo e não apaga os dados guardados no Firebase.</p>
+        </section>
+
+        <section class="admin-card sync-diagnostics">
+          <div class="section-heading">
+            <div><span class="eyebrow">Diagnóstico</span><h2>Ligação ao Firebase</h2></div>
+            <button class="secondary-button small" id="retryFirebaseButton" type="button">Testar novamente</button>
+          </div>
+          <div class="diagnostic-list">
+            <div><span>Estado</span><strong id="firebaseStatusText" data-status="connecting">A iniciar</strong></div>
+            <div><span>Última sincronização</span><strong id="firebaseLastSyncText">Ainda não sincronizou</strong></div>
+            <div><span>Dispositivo</span><strong id="firebaseDeviceText">—</strong></div>
+          </div>
+          <p class="firebase-error" id="firebaseErrorText">Nenhum erro detetado.</p>
+        </section>
+
+        <p class="app-version" id="appVersion">Versão 3.3.0</p>
+      </section>
+    </main>
+
+    <nav class="bottom-nav" aria-label="Navegação principal">
+      <button class="active" type="button" data-nav="home" aria-label="Início">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 10 8-7 8 7v10h-6v-6h-4v6H4Z"/></svg>
+        <span>Início</span>
+      </button>
+      <button type="button" data-nav="coupons" aria-label="Cupões">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v4a2 2 0 0 0 0 4v4H4v-4a2 2 0 0 0 0-4Z"/><path d="M9 8v8"/></svg>
+        <span>Cupões</span>
+      </button>
+      <button class="nav-primary" type="button" data-nav="minute" aria-label="Massagem ao minuto">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7v5l3 2M12 3a9 9 0 1 0 9 9 9 9 0 0 0-9-9Z"/></svg>
+        <span>Minuto</span>
+      </button>
+      <button type="button" data-nav="history" aria-label="Histórico">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h14M5 12h14M5 19h14"/></svg>
+        <span>Histórico</span>
+      </button>
+      <button type="button" data-nav="admin" aria-label="Admin">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 5 6v5c0 4.6 2.8 8.3 7 10 4.2-1.7 7-5.4 7-10V6Z"/><path d="M9 12h6M12 9v6"/></svg>
+        <span>Admin</span>
+      </button>
+    </nav>
+  </div>
+
+  <dialog class="modal" id="pinModal">
+    <form method="dialog" class="modal-card" id="pinUnlockForm">
+      <button class="modal-close" type="button" data-close-dialog aria-label="Fechar">×</button>
+      <span class="modal-icon">◆</span>
+      <span class="eyebrow">Área reservada</span>
+      <h2>Introduzir PIN</h2>
+      <p>Usa o PIN de administração para continuar.</p>
+      <label>PIN
+        <input id="pinUnlockInput" type="password" inputmode="numeric" minlength="4" maxlength="8" autocomplete="off" required>
+      </label>
+      <p class="form-error" id="pinError" role="alert"></p>
+      <button class="primary-button full" value="default" type="submit">Desbloquear</button>
+    </form>
+  </dialog>
+
+  <dialog class="modal" id="sessionPinModal">
+    <form method="dialog" class="modal-card" id="sessionPinForm">
+      <button class="modal-close" type="button" data-close-dialog aria-label="Fechar">×</button>
+      <span class="modal-icon">◆</span>
+      <span class="eyebrow">Autorização necessária</span>
+      <h2>PIN do administrador</h2>
+      <p>Apenas o administrador pode iniciar a massagem ao minuto.</p>
+      <label>PIN
+        <input id="sessionPinInput" type="password" inputmode="numeric" minlength="4" maxlength="8" autocomplete="off" required>
+      </label>
+      <p class="form-error" id="sessionPinError" role="alert"></p>
+      <button class="primary-button full" value="default" type="submit">Autorizar e iniciar</button>
+    </form>
+  </dialog>
+
+  <dialog class="modal" id="couponModal">
+    <form method="dialog" class="modal-card" id="couponEditorForm">
+      <button class="modal-close" type="button" data-close-dialog aria-label="Fechar">×</button>
+      <span class="eyebrow">Catálogo</span>
+      <h2 id="couponModalTitle">Novo cupão</h2>
+      <input id="couponEditId" type="hidden">
+      <label>Nome
+        <input id="couponNameInput" type="text" maxlength="60" required>
+      </label>
+      <label>Descrição
+        <textarea id="couponDescriptionInput" maxlength="180" rows="3" required></textarea>
+      </label>
+      <div class="field-row">
+        <label>Preço
+          <input id="couponPriceInput" type="number" min="1" max="9999" step="1" required>
+        </label>
+        <label>Duração estimada
+          <input id="couponDurationInput" type="number" min="0" max="600" step="1" required>
+        </label>
+      </div>
+      <label class="checkbox-row"><input id="couponActiveInput" type="checkbox" checked> Disponível na loja</label>
+      <button class="primary-button full" value="default" type="submit">Guardar cupão</button>
+    </form>
+  </dialog>
+
+  <dialog class="modal" id="confirmModal">
+    <form method="dialog" class="modal-card compact-modal">
+      <span class="modal-icon" id="confirmIcon">◇</span>
+      <h2 id="confirmTitle">Confirmar</h2>
+      <p id="confirmMessage"></p>
+      <div class="modal-actions">
+        <button class="secondary-button" value="cancel">Cancelar</button>
+        <button class="primary-button" id="confirmAcceptButton" value="default">Confirmar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <noscript>Esta aplicação necessita de JavaScript ativado.</noscript>
+  <script type="module" src="app.js?v=3.3.0"></script>
+</body>
+</html>
