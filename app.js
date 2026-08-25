@@ -11,7 +11,7 @@ import { getDatabase, onValue, ref, set } from 'https://www.gstatic.com/firebase
   const DEVICE_ID_KEY = 'massageCreditsDeviceId_v1';
   const FIREBASE_STATE_PATH = 'apps/massageCredits/sharedState';
   const MAX_HISTORY = 1000;
-  const DEFAULT_PIN = '1234';
+  const DEFAULT_PIN = '01123456';
 
   const firebaseConfig = {
     apiKey: 'AIzaSyAc2NQ354sRFt5RSYHfTKok7IMg5y5tvKc',
